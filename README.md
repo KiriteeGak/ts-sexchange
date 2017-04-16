@@ -1,9 +1,8 @@
-# 
-ts-sexchange
+# ts-sexchange
 
-##
-Time series analysis of flow of trending tags, commmunity activity and many more (I haven't decided yet)
+## Time series analysis of flow of trending tags, commmunity activity and many more (I haven't decided yet)
 
-Implemented
-###
-1.	Base community detail + question and other details scraper (raw)
+## Implemented
+
+### 
+1.	Base community details + question and other details scraper (raw)
