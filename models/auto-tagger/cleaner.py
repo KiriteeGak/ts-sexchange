@@ -1,9 +1,11 @@
 from nltk.corpus import stopwords
 import nltk, string, re
 from nltk.stem.porter import *
+from nltk.stem import WordNetLemmatizer
 
 exclude = set(string.punctuation)
 stemmer = PorterStemmer()
+wordnet_lemmatizer = WordNetLemmatizer()
 
 def removeStopWords(text):
 	return " ".join([word.strip() for word in text.split(' ') if word.strip() not in set(stopwords.words('english'))])
@@ -18,11 +20,14 @@ def removePunctuations(text, customlist = []):
 def removeNumbers(text):
 	return re.sub(r'\d','',text)
 
+def removeSmallWords(text, min_len=2):
+	return " ".join([word.lower() for word in text.split(' ') if len(word) > min_len])
+
 def cleaner(text):
 	text = removePunctuations(text)
 	text = removeStopWords(text)
 	text = re.sub(r' {2,}',' ',text)
 	text = removeNumbers(text)
-	# stemmer creates noise, uncomment at risk
-	# text = " ".join(stemmer.stem(word) for word in text.split(' '))
+	text = removeSmallWords(text)
+	text = " ".join(wordnet_lemmatizer.lemmatize(word) for word in text.split(' '))
 	return text

@@ -21,5 +21,14 @@ def createDatasetForTfidf(ret = {}):
 			ret[tag] += cleaner(doc['question'])
 	return ret
 
+def createDatasetForChi2(ret = {}):
+	cursor = mongoCliObj.find({})
+	for doc in cursor:
+		for tag in doc['tags']:
+			if tag not in ret: ret[tag] = []
+			ret[tag].append(cleaner(doc['question']))
+	return ret
+
 if __name__ == '__main__':
-	dumpAsPickle("tagstotext", createDatasetForTfidf())
+	dumpAsPickle("tags to text as string", createDatasetForTfidf())
+	dumpAsPickle("tags to text as list", createDatasetForChi2())
