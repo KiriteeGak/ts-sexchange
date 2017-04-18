@@ -15,7 +15,6 @@ curr_list = []
 def bulkPush(list_of_docs)
 	[mongoCliObj.insert(doc) for doc in list_of_docs]
 
-def
 while conn is True:
 	try:
 		comm_page_url = "https://datascience.stackexchange.com/questions?page="+str(init_page_no)+"&sort=newest"

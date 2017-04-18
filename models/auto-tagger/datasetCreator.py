@@ -16,6 +16,7 @@ def dumpAsPickle(filename, toDump):
 def createDatasetForTfidf(ret = {}):
 	cursor = mongoCliObj.find({})
 	for doc in cursor:
+		print doc
 		for tag in doc['tags']:
 			if tag not in ret: ret[tag] = ''
 			ret[tag] += cleaner(doc['question'])
@@ -30,5 +31,5 @@ def createDatasetForChi2(ret = {}):
 	return ret
 
 if __name__ == '__main__':
-	dumpAsPickle("tags to text as string", createDatasetForTfidf())
-	dumpAsPickle("tags to text as list", createDatasetForChi2())
+	dumpAsPickle("tagstotextasstring", createDatasetForTfidf())
+	dumpAsPickle("tagstotextaslists", createDatasetForChi2())

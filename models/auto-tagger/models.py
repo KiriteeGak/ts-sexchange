@@ -1,5 +1,6 @@
 import cPickle
 import math
+import numpy as np
 from textblob import TextBlob as tb
 from sklearn.feature_selection import chi2
 
@@ -30,50 +31,25 @@ class tfidf(object):
 			for word, score in sorted_words[:10]:
 				print("\tWord: {}, TF-IDF: {}".format(word, round(score, 5)))
 
-class chiSquareSelection():
-	def getAllWords():
-		loaded_dic = loadFromPickle('tagstotext')
-		allWordList += {k : v.split(' ') for k,v in loaded_dic.iteritems()}
-		return allWordList
+def createXandYHotCoding(pickle_to_load, out_string = ''):
+	loaded_dic = loadFromPickle(pickle_to_load)
+	y_labels = {key : i+1 for i,key in enumerate(loaded_dic.keys())}
+	all_text = " ".join([v for v in loaded_dic.values()])
+	word_labels = {word: i+1 for i,word in enumerate(list(set(all_text.split(' '))))}
+	return word_labels, y_labels
 
-	''' 
-	A is the number of times that f and t cooccur
-	B is the number of times that f occurs without t
-	C is the number of times that t occurs without f
-	D is the number of times neither t or f occur
-	N is the number of observations
-	'''
+def vectoriseXandY(file_text_list, file_text_string, x_vectorised = [], y_vectorised = []):
+	(word_labels, y_labels) = createXandYHotCoding(file_text_string)
+	loaded_dic = loadFromPickle(file_text_list)
+	for k,v in loaded_dic.iteritems():
+		for text in v:
+			x_array = np.zeros(len(word_labels))
+			y_array = y_labels[k]
+			for word in text.split(' '):
+				x_array[word_labels[word]] = 1
+			x_vectorised.append(np.array(x_array))
+			y_vectorised.append(y_array)
 
-	def FAndT(list_of_texts_dic, list_of_all_terms_dic, ret = {}):
-		for term in list_of_all_terms_dic:
-			if term not in ret: ret[term] = 0
-				for docs in list_of_texts:
-					if term in docs.split(' '): ret[term] += 1
-		return ret
-
-	def FNotT(list_of_texts, list_of_all_terms, ret = {}):
-		for term in list_of_all_terms:
-			if term not in ret: ret[term] = 0
-				for docs in list_of_texts:
-					if term not in docs.split(' '): ret[term] += 1
-		return ret
-
-	def TNotF(list_of_texts, list_of_all_terms, ret = {}):
-		for term in list_of_all_terms_dic:
-			if term not in ret: ret[term] = 0
-				for docs in list_of_texts:
-					if term in docs.split(' '): ret[term] += 1
-		return ret
-
-	def notTNotF(list_of_texts, list_of_all_terms, ret = {}):
-		for term in list_of_all_terms_dic:
-			if term not in ret: ret[term] = 0
-				for docs in list_of_texts:
-					if term not in docs.split(' '): ret[term] += 1
-		return ret
-
-def createXs():
-	pass
-	
 if __name__ == '__main__':
-	tfidf().pipeliner()
+	# tfidf().pipeliner()
+	vectoriseXandY("tagstotextaslists","tagstotextasstring")
