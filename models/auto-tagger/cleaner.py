@@ -20,8 +20,11 @@ def removePunctuations(text, customlist = []):
 def removeNumbers(text):
 	return re.sub(r'\d','',text)
 
-def removeSmallWords(text, min_len=2):
+def removeSmallWords(text, min_len = 3):
 	return " ".join([word.lower() for word in text.split(' ') if len(word) > min_len])
+
+def removeLargeWords(text, min_len = 12):
+	return " ".join([word.lower() for word in text.split(' ') if len(word) < min_len])
 
 def cleaner(text):
 	text = removePunctuations(text)
@@ -29,5 +32,7 @@ def cleaner(text):
 	text = re.sub(r' {2,}',' ',text)
 	text = removeNumbers(text)
 	text = removeSmallWords(text)
+	text = removeLargeWords(text)
 	text = " ".join(wordnet_lemmatizer.lemmatize(word) for word in text.split(' '))
+	text = " ".join(stemmer.stem(word) for word in text.split(' '))
 	return text
