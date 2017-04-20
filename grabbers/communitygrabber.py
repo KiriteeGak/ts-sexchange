@@ -37,6 +37,7 @@ class scrapDetails(object):
 			"answered_status" : self.getAnswers(ques)[1],
 			"poster" : self.getOP(ques),
 			"time_of_posting" : self.getPostTime(ques),
+			"date_of_posting" : self.getPostTime(ques).split(' ')[0].replace('-',''),
 			"user_details" : self.getOpsReputationAndBadges(ques, ['bronze','silver','gold'])
 			} for ques in single_page_element]
 
