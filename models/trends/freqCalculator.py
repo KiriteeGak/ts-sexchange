@@ -1,10 +1,11 @@
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from collections import Counter
-import timestring
 import itertools
 import numpy as np
+from matplotlib import pyplot as plt
 from datetime import datetime, timedelta
+from matplotlib.pyplot import cm
 
 ip = "localhost"
 port = 27017
@@ -12,7 +13,8 @@ db = "ts-sexchange"
 collection = "dse_community"
 
 class tagTrends():
-	def getAllTags(self, mongoCliObj, ret = []):
+	def getAllTags(self, mongoCliObj):
+		ret = []
 		for doc in mongoCliObj.find({}):
 			ret += doc['tags']
 		return list(set(ret))
@@ -25,7 +27,8 @@ class tagTrends():
 	def tagCountsHelper(self, list_of_tags):
 		return {tag : 1 for tag in list_of_tags}
 
-	def fillRemainingTags(self, mongoCliObj , tags_mentioned, ret = {}):
+	def fillRemainingTags(self, mongoCliObj , tags_mentioned):
+		ret = {}
 		all_tags = self.getAllTags(mongoCliObj)
 		for tag in all_tags:
 			if tag not in tags_mentioned:
@@ -52,16 +55,30 @@ class tagTrends():
 		ret = self.mainTrends(mongoCliObj,cursor)
 		return ret
 
-	def countsModifiedl2d(self, tag_freq_per_period, all_tags, ret = {}):
+	def countsModifiedl2d(self, tag_freq_per_period, all_tags):
+		ret = {}
 		for tag in all_tags:
 			ret[tag] = []
 			for dic in tag_freq_per_period:
 				ret[tag].append(dic[tag])
 		return ret
 
+class plotter(object):
+	def plotgraph(self, data, number_of_top_tags):
+		for i, each in enumerate(data):
+			if i < number_of_top_tags:
+				plt.plot(list(reversed(each[1])),label=each[0])
+			else:
+				plt.xlabel('Time'); plt.ylabel('No. of questions asked')
+				plt.legend(bbox_to_anchor=(1.05, 1), loc=1, borderaxespad=0.)
+				plt.show()
+				exit()
+
+
 if __name__ == '__main__':
 	mongoCliObj = MongoClient(ip,port)[db][collection]
 	selist, edlist = tagTrends().getTimeDates()
 	dic_of_tag_freq = [tagTrends().mongoDatewiseextract(d,edlist[i],mongoCliObj).copy() for i,d in enumerate(selist)]
 	modified_freq_by_tags = tagTrends().countsModifiedl2d(dic_of_tag_freq,tagTrends().getAllTags(mongoCliObj))
-	print sorted(modified_freq_by_tags.items(), key=lambda items: sum(np.array(items[1])), reverse = True)
+	sorted_freq = sorted(modified_freq_by_tags.items(), key = lambda items: sum(np.array(items[1])), reverse = True)
+	plotter().plotgraph(sorted_freq, 10)

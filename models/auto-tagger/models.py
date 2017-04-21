@@ -7,11 +7,6 @@ from sklearn.feature_selection import chi2
 from utilities import *
 from celery import Celery
 
-# import redis
-# redis_client_obj = redis.Redis(host = 'localhost', port = 6379, db = 0)
-# redis_client_obj.flushall()
-# app = Celery('chiSquareSelection.notTnotF', broker = "redis://")
-
 class tfidf(object):
 	def tf(self, word, blob):
 		return blob.words.count(word) / len(blob.words)
@@ -68,15 +63,20 @@ class chiSquareSelection():
 	'''
 	
 	def mainCaller(self, matrix_of_freq):
+		print "started 1",
 		dumpAsPickle("pickleDumps/FeatureNTerm", self.FandT(matrix_of_freq))
+		print "started 2"
 		dumpAsPickle("pickleDumps/FeatureNotTerm", self.FnotT(matrix_of_freq))
+		print "started 3"
 		dumpAsPickle("pickleDumps/notFeatureTerm", self.TnotF(matrix_of_freq))
-		dumpAsPickle("pickleDumps/notFeatureNotTerm", self.notTnotF(matrix_of_freq))
+		print "started 4"
+		dumpAsPickle("pickleDumps/notFeatureNotTerm", self.notTnotFMod(matrix_of_freq))
 		
 	def FandT(self, matrix_of_freq):
 		return [[len(c) for c in r] for r in matrix_of_freq]
 
-	def FnotT(self, matrix_of_freq, ret = []):
+	def FnotT(self, matrix_of_freq):
+		ret = []
 		ret = [[0 for i in range(len(matrix_of_freq[1]))] for i in range(len(matrix_of_freq))]
 		for i, r in enumerate(matrix_of_freq):
 			for j, ele in enumerate(r):
@@ -86,7 +86,8 @@ class chiSquareSelection():
 		print np.shape(ret)
 		return ret
 
-	def TnotF(self, matrix_of_freq, ret = []):
+	def TnotF(self, matrix_of_freq):
+		ret = []
 		ret = [[0 for i in range(len(matrix_of_freq[1]))] for i in range(len(matrix_of_freq))]
 		modified_mat = zip(*matrix_of_freq)
 		for i, r in enumerate(matrix_of_freq):
@@ -96,37 +97,71 @@ class chiSquareSelection():
 				ret[i][j] = len(set(e)-set(ele))
 		return ret
 
-	def notTnotF(self, matrix_of_freq, ret = []):
-		matrix_of_freq = X
+	# def notTnotF(self, matrix_of_freq):
+	# 	ret = []
+	# 	ret = [[0 for i in range(len(matrix_of_freq[1]))] for i in range(len(matrix_of_freq))]
+	# 	modified_dic = self.rearrangeAsStrings(matrix_of_freq)
+	# 	for i, r in enumerate(matrix_of_freq):
+	# 		for j, ele in enumerate(r):
+	# 			temp_dic = copy.deepcopy(modified_dic)
+	# 			to_be_removed = []; li = []
+	# 			ret[i][j] = self.iteratorForNotTNotF(i, j, modified_dic, temp_dic)
+	# 	return ret
+
+	def notTnotFMod(self, matrix_of_freq, all_files = [], ret = []):
 		ret = [[0 for i in range(len(matrix_of_freq[1]))] for i in range(len(matrix_of_freq))]
-		modified_dic = self.rearrangeAsStrings(matrix_of_freq)
+		all_files = set(self.flattenListofLists(matrix_of_freq, dual = True)[:])
+		precal = self.preCalFTDocs(matrix_of_freq)
+		loadFromPickle("pickleDumps/precalFTDocVals")
 		for i, r in enumerate(matrix_of_freq):
 			for j, ele in enumerate(r):
-				print i,j
-				temp_dic = copy.deepcopy(modified_dic)
-				to_be_removed = []; li = []
-				ret[i][j] = self.iteratorForNotTNotF(i, j, modified_dic, temp_dic)
+				st = time.time()
+				ret[i][j] = len(all_files - precal[str(i)+'_'+str(j)])
+				print "time elapsed: ",time.time()-st, "value: ", ret[i][j]
 		return ret
 
-	# @app.task
-	def iteratorForNotTNotF(self, i, j, modified_dic, temp_dic, to_be_removed = [], li = []):
-		for k,v in modified_dic.iteritems():
-			if str(i) in k.split('_') or str(j) in k.split('_'):
-				to_be_removed += modified_dic[k]
-				temp_dic.pop(k,None)
-				continue
-			li += v
-		return len(set(li)-set(to_be_removed))
-
-	def rearrange(self, matrix, ret):
-		for i,r in enumerate(matrix):
-			for j,k in enumerate(r):
-				if i == 0: ret.append([matrix[i][j]])
-				else: ret[j].append(matrix[i][j])
+	def preCalFTDocs(self, matrix_of_freq, ret = {}):
+		for i, r in enumerate(matrix_of_freq):
+			for j, ele in enumerate(r):
+				row = self.flattenListofLists(r)
+				col = self.flattenListofLists(self.getColumn(matrix_of_freq,j))
+				ret[str(i)+'_'+str(j)] = set(row+col)
+		dumpAsPickle('pickleDumps/precalFTDocVals', ret)
+		# print len(ret.keys()),ret['10_0']
 		return ret
 
-	def rearrangeAsStrings(self, matrix):
-		return {str(i)+'_'+str(j): matrix[i][j] for i,r in enumerate(matrix) for j,k in enumerate(r) }
+	def getColumn(self, matrix, i):
+		return [row[i] for row in matrix]
+
+	def flattenListofLists(self, list_of_list, dual = False):
+		ret = []
+		if dual:
+			for r in list_of_list:
+				for cell in r:
+					ret += cell
+			return ret
+		for r in list_of_list:
+			ret += r
+		return ret
+
+	# def iteratorForNotTNotF(self, i, j, modified_dic, temp_dic, to_be_removed = [], li = []):
+	# 	for k,v in modified_dic.iteritems():
+	# 		if str(i) in k.split('_') or str(j) in k.split('_'):
+	# 			to_be_removed += modified_dic[k]
+	# 			temp_dic.pop(k,None)
+	# 			continue
+	# 		li += v
+	# 	return len(set(li)-set(to_be_removed))
+
+	# def rearrange(self, matrix, ret):
+	# 	for i,r in enumerate(matrix):
+	# 		for j,k in enumerate(r):
+	# 			if i == 0: ret.append([matrix[i][j]])
+	# 			else: ret[j].append(matrix[i][j])
+	# 	return ret
+
+	# def rearrangeAsStrings(self, matrix):
+	# 	return {str(i)+'_'+str(j): matrix[i][j] for i,r in enumerate(matrix) for j,k in enumerate(r) }
 
 if __name__ == '__main__':
 	# uncomment this to run tf-idf
@@ -134,4 +169,5 @@ if __name__ == '__main__':
 	# Vectorisation for word and label vectors
 	X,y = vectoriseXandY("pickleDumps/tagstotextaslists","pickleDumps/tagstotextasstring")
 	chiSquareSelection().mainCaller(X)
-	# chiSquareSelection().notTnotF(X)
+	# x = [[['1','2'],['2','4']],[['5','6'],['7','2']],[['3','6'],['4','5']]]
+	# print chiSquareSelection().notTnotFMod(X)
