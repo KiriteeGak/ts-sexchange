@@ -1,7 +1,7 @@
 import cPickle
 import math, copy
 import numpy as np
-import time
+import time, gc
 from textblob import TextBlob as tb
 from sklearn.feature_selection import chi2
 from utilities import *
@@ -112,6 +112,7 @@ class chiSquareSelection():
 		ret = [[0 for i in range(len(matrix_of_freq[1]))] for i in range(len(matrix_of_freq))]
 		all_files = set(self.flattenListofLists(matrix_of_freq, dual = True)[:])
 		precal = self.preCalFTDocs(matrix_of_freq)
+		exit()
 		loadFromPickle("pickleDumps/precalFTDocVals")
 		for i, r in enumerate(matrix_of_freq):
 			for j, ele in enumerate(r):
@@ -123,51 +124,38 @@ class chiSquareSelection():
 	def preCalFTDocs(self, matrix_of_freq, ret = {}):
 		for i, r in enumerate(matrix_of_freq):
 			for j, ele in enumerate(r):
+				print i,j
 				row = self.flattenListofLists(r)
 				col = self.flattenListofLists(self.getColumn(matrix_of_freq,j))
 				ret[str(i)+'_'+str(j)] = set(row+col)
+				print i,j, ret[str(i)+'_'+str(j)]
+				exit()
+		# ret = { str(i)+'_'+str(j) : set(self.flattenListofLists(r) + self.flattenListofLists(self.getColumn(matrix_of_freq,j))) for i, r in enumerate(matrix_of_freq) for j, ele in enumerate(r) }
 		dumpAsPickle('pickleDumps/precalFTDocVals', ret)
-		# print len(ret.keys()),ret['10_0']
+		print len(ret.keys()),ret['10_0']
 		return ret
 
 	def getColumn(self, matrix, i):
 		return [row[i] for row in matrix]
 
-	def flattenListofLists(self, list_of_list, dual = False):
-		ret = []
+	def singleReduce(self, lists):
+		return reduce(lambda a,b:a+b, lists)
+
+	def flattenListofLists(self, list_of_list, dual = False, count = 0):
+		# if count % 142400 == 0:
+		# 	print "Hooray %d" %(count/7120)
 		if dual:
-			for r in list_of_list:
-				for cell in r:
-					ret += cell
-			return ret
-		for r in list_of_list:
-			ret += r
-		return ret
-
-	# def iteratorForNotTNotF(self, i, j, modified_dic, temp_dic, to_be_removed = [], li = []):
-	# 	for k,v in modified_dic.iteritems():
-	# 		if str(i) in k.split('_') or str(j) in k.split('_'):
-	# 			to_be_removed += modified_dic[k]
-	# 			temp_dic.pop(k,None)
-	# 			continue
-	# 		li += v
-	# 	return len(set(li)-set(to_be_removed))
-
-	# def rearrange(self, matrix, ret):
-	# 	for i,r in enumerate(matrix):
-	# 		for j,k in enumerate(r):
-	# 			if i == 0: ret.append([matrix[i][j]])
-	# 			else: ret[j].append(matrix[i][j])
-	# 	return ret
-
-	# def rearrangeAsStrings(self, matrix):
-	# 	return {str(i)+'_'+str(j): matrix[i][j] for i,r in enumerate(matrix) for j,k in enumerate(r) }
+			return self.singleReduce(self.singleReduce(list_of_list))
+		else:
+			return self.singleReduce(list_of_list)
 
 if __name__ == '__main__':
 	# uncomment this to run tf-idf
 	# tfidf().pipeliner()
 	# Vectorisation for word and label vectors
 	X,y = vectoriseXandY("pickleDumps/tagstotextaslists","pickleDumps/tagstotextasstring")
-	chiSquareSelection().mainCaller(X)
+	print "Done"
+	# print chiSquareSelection().singleReduce(chiSquareSelection().singleReduce(x))
+	# chiSquareSelection().mainCaller(X)
 	# x = [[['1','2'],['2','4']],[['5','6'],['7','2']],[['3','6'],['4','5']]]
-	# print chiSquareSelection().notTnotFMod(X)
+	print chiSquareSelection().notTnotFMod(X)
