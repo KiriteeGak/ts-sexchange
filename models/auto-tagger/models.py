@@ -5,7 +5,7 @@ import time, gc
 from textblob import TextBlob as tb
 from sklearn.feature_selection import chi2
 from utilities import *
-# from celery import Celery
+from datasetCreator import *
 
 class tfidf(object):
 	def tf(self, word, blob):
@@ -130,9 +130,58 @@ class chiSquareSelection():
 			ret += r
 		return ret
 
+class MLP(object):
+	def getcrossentropy(self, predicted, actual):
+		cros_ent = 0
+		for (pvec, avec) in zip(predicted, actual):
+			p_dist = sum(avec == 1)/float(len(avec))
+			for i, label in enumerate(list(avec)): 
+				if list(pvec)[i] > 0: cros_ent += -np.log(list(pvec)[i])*float(p_dist)
+		return cros_ent
+
+	def getIndices(self, arr, n):
+		return [i for i,x in enumerate(list(arr)) if x == n]
+
+	def getIndicesOfTopNEles(self, arr, n):
+		return arr.argsort()[-1*n:][::-1]
+
+	def getresults(self, predicted, actual):
+		labels = loadFromPickle("pickleDumps/vectorsTags")
+		vec2ques = loadFromPickle("pickleDumps/vec2ques")
+		avgright = 0
+		for (pvec, avec) in zip(predicted, actual):
+			ind1 = self.getIndices(avec, 1)
+			ind2 = self.getIndicesOfTopNEles(pvec, len(ind1))
+			(l1a,l2p) = zip(*[(labels.keys()[labels.values().index(t1)], labels.keys()[labels.values().index(t2)]) for (t1,t2) in zip(ind1,ind2)])
+			try:
+				print l1a,l2p,"\n", vec2ques[self.createDocvectortoQuestionmatch(avec)],"\n>>\n"
+			except Exception:
+				pass
+			avgright += len(set(l1a).intersection(set(l2p)))/float(len(l1a))
+		return avgright
+
+	def MLPdocvec(self, X, y):
+		sss = StratifiedShuffleSplit(n_splits = 5, test_size=0.3, random_state=0)
+		for hidden_neurons in range(10,100,25):
+			gc.collect()
+			for train_index, test_index in sss.split(X, y):
+				X_train, X_test = X[train_index], X[test_index]
+				y_train, y_test = y[train_index], y[test_index]
+				print "Here"
+				clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(hidden_neurons,), random_state=1)
+				clf.fit(X_train,y_train)
+				dumpAsPickle("pickleDumps/mlptrained_"+str(hidden_neurons)+"_Ns",clf)
+				clf = loadFromPickle("pickleDumps/mlptrained_"+str(hidden_neurons)+"_Ns")
+				predicted = clf.predict_proba(X_test)
+				print self.getcrossentropy(predicted,y_test), self.getresults(predicted, y_test)
+				print "Pass done at neuron number %d" %(hidden_neurons)
+
 if __name__ == '__main__':
 	# tfidf().pipeliner()
-	X,y = vectoriseXandY("pickleDumps/tagstotextaslists","pickleDumps/tagstotextasstring")
+	# X,y = vectoriseXandY("pickleDumps/tagstotextaslists","pickleDumps/tagstotextasstring")
 	# chiSquareSelection().mainCaller(X)
-	# x = [[['1','2'],['2','4']],[['5','6'],['7','2']],[['3','6'],['4','5']]]
-	print chiSquareSelection().notTnotFMod(X)
+	# Run createdatasets to get the pickle files
+	# createDatasets()
+	X = np.array(loadFromPickle("pickleDumps/x_term_doc_mat"))
+	y = np.array(loadFromPickle("pickleDumps/y_term_doc_mat"))
+	MLP().MLPdocvec(X,y)
