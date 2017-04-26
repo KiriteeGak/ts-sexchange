@@ -1,0 +1,2 @@
+63292.0625678 0.364024679639
+Pass done at neuron number 10

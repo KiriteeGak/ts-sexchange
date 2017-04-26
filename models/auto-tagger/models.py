@@ -6,6 +6,7 @@ from textblob import TextBlob as tb
 from sklearn.feature_selection import chi2
 from utilities import *
 from datasetCreator import *
+from cleaner import *
 
 class tfidf(object):
 	def tf(self, word, blob):
@@ -100,7 +101,6 @@ class chiSquareSelection():
 		ret = [[0 for i in range(len(matrix_of_freq[1]))] for i in range(len(matrix_of_freq))]
 		all_files = set(self.flattenListofLists(matrix_of_freq, dual = True)[:])
 		precal = self.preCalFTDocs(matrix_of_freq)
-		exit()
 		loadFromPickle("pickleDumps/precalFTDocVals")
 		for i, r in enumerate(matrix_of_freq):
 			for j, ele in enumerate(r):
@@ -131,6 +131,34 @@ class chiSquareSelection():
 		return ret
 
 class MLP(object):
+	def predictADoc(self, document):
+		corpus = loadFromPickle("pickleDumps/corpus_cleaned")
+		docvec = np.zeros(len(corpus))
+		text = cleaner(document)
+		for e in text.split(' '): 
+			try: docvec[corpus.index(e)] = 1
+			except ValueError: pass
+		clf = loadFromPickle("pickleDumps/mlptrained_10_Ns")
+		predicted = clf.predict_proba(docvec)
+		return predicted
+
+	def MLPdocvec(self):
+		X = np.array(loadFromPickle("pickleDumps/x_term_doc_mat"))
+		y = np.array(loadFromPickle("pickleDumps/y_term_doc_mat"))
+		sss = StratifiedShuffleSplit(n_splits = 5, test_size=0.3, random_state=0)
+		for hidden_neurons in range(10,100,25):
+			gc.collect()
+			for train_index, test_index in sss.split(X, y):
+				X_train, X_test = X[train_index], X[test_index]
+				y_train, y_test = y[train_index], y[test_index]
+				clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(hidden_neurons,), random_state=1)
+				clf.fit(X_train,y_train)
+				dumpAsPickle("pickleDumps/mlptrained_"+str(hidden_neurons)+"_Ns",clf)
+				clf = loadFromPickle("pickleDumps/mlptrained_"+str(hidden_neurons)+"_Ns")
+				predicted = clf.predict_proba(X_test)
+				print self.getcrossentropy(predicted,y_test), self.getresults(predicted, y_test)
+				print "Pass done at neuron number %d" %(hidden_neurons)
+
 	def getcrossentropy(self, predicted, actual):
 		cros_ent = 0
 		for (pvec, avec) in zip(predicted, actual):
@@ -142,39 +170,58 @@ class MLP(object):
 	def getIndices(self, arr, n):
 		return [i for i,x in enumerate(list(arr)) if x == n]
 
-	def getIndicesOfTopNEles(self, arr, n):
-		return arr.argsort()[-1*n:][::-1]
+	def getIndicesOfTopNEles(self, arr, n, add_up = False):
+		if not add_up:
+			return arr.argsort()[-1*n:][::-1]
+		indices_by_sum = [np.where(arr == x) for i, x in enumerate(list(np.sort(arr)[::-1])) if sum(list(arr)[:i]) <= 95]
+		indices_by_ele = self.getIndicesOfTopNEles(arr,2)
+		if len(indices_by_sum) <= len(indices_by_ele):
+			return indices_by_sum
+		return indices_by_ele
 
 	def getresults(self, predicted, actual):
 		labels = loadFromPickle("pickleDumps/vectorsTags")
 		vec2ques = loadFromPickle("pickleDumps/vec2ques")
-		avgright = 0
+		len_inte = 0; base_len = 0
 		for (pvec, avec) in zip(predicted, actual):
 			ind1 = self.getIndices(avec, 1)
 			ind2 = self.getIndicesOfTopNEles(pvec, len(ind1))
 			(l1a,l2p) = zip(*[(labels.keys()[labels.values().index(t1)], labels.keys()[labels.values().index(t2)]) for (t1,t2) in zip(ind1,ind2)])
-			try:
-				print l1a,l2p,"\n", vec2ques[self.createDocvectortoQuestionmatch(avec)],"\n>>\n"
-			except Exception:
-				pass
-			avgright += len(set(l1a).intersection(set(l2p)))/float(len(l1a))
-		return avgright
+			len_inte += len(set(l1a).intersection(set(l2p))); base_len += len(l1a);
+		return len_inte/float(base_len)
 
-	def MLPdocvec(self, X, y):
-		sss = StratifiedShuffleSplit(n_splits = 5, test_size=0.3, random_state=0)
-		for hidden_neurons in range(10,100,25):
-			gc.collect()
-			for train_index, test_index in sss.split(X, y):
-				X_train, X_test = X[train_index], X[test_index]
-				y_train, y_test = y[train_index], y[test_index]
-				print "Here"
-				clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(hidden_neurons,), random_state=1)
-				clf.fit(X_train,y_train)
-				dumpAsPickle("pickleDumps/mlptrained_"+str(hidden_neurons)+"_Ns",clf)
-				clf = loadFromPickle("pickleDumps/mlptrained_"+str(hidden_neurons)+"_Ns")
-				predicted = clf.predict_proba(X_test)
-				print self.getcrossentropy(predicted,y_test), self.getresults(predicted, y_test)
-				print "Pass done at neuron number %d" %(hidden_neurons)
+	def getmaxLabelsFromNN(self, predicted_probs):
+		ind = self.getIndicesOfTopNEles(predicted_probs[0],0,add_up = True)
+		labels = loadFromPickle("pickleDumps/vectorsTags")
+		return [labels.keys()[labels.values().index(i)] for i in ind]
+
+	def tagaDoc(self, doc):
+		print self.getmaxLabelsFromNN(self.predictADoc(doc))
+
+class textBasedExtraction(object):
+	
+	def __init__(self, cursor):
+		self.cursor = cursor
+		self.matchTags(self.cursor)
+
+	def matchTags(self, cursor):
+		labels = loadFromPickle("pickleDumps/vectorsTags")
+		question_label = {}
+		for i, doc in enumerate(cursor):
+			question_label[doc['question']] = []
+			for label in labels:
+				if len(set(cleaner(doc['question']).split(' ')).intersection(cleaner(label, base = False).split(' '))) == len(cleaner(label, base = False).split(' ')):
+					score = self.maxMatchScore(label, doc['question'])
+					question_label[doc['question']].append([label,score])
+				elif len(label.split(' ')) >= 2:
+					score = self.maxMatchScore(label, doc['question'])
+					if score > 0.75: question_label[doc['question']].append([label,score])
+		return question_label
+
+	def maxMatchScore(self, label, text):
+		num = len("".join(list(set(cleaner(label, base = False).split(' ')).intersection(set(cleaner(text).split(' '))))))
+		den = len("".join(cleaner(label, base= False)))
+		return num/float(den)
 
 if __name__ == '__main__':
 	# tfidf().pipeliner()
@@ -182,6 +229,6 @@ if __name__ == '__main__':
 	# chiSquareSelection().mainCaller(X)
 	# Run createdatasets to get the pickle files
 	# createDatasets()
-	X = np.array(loadFromPickle("pickleDumps/x_term_doc_mat"))
-	y = np.array(loadFromPickle("pickleDumps/y_term_doc_mat"))
-	MLP().MLPdocvec(X,y)
+	# MLP().MLPdocvec()
+	# dumpAsPickle("pickleDumps/wordmatchquestions",textBasedExtraction(getcursor()).matchTags())
+	print MLP().tagaDoc("k-means and bayesian clustering neural networks")
