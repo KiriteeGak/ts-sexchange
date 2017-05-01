@@ -229,6 +229,6 @@ if __name__ == '__main__':
 	# chiSquareSelection().mainCaller(X)
 	# Run createdatasets to get the pickle files
 	# createDatasets()
-	# MLP().MLPdocvec()
+	MLP().MLPdocvec()
 	# dumpAsPickle("pickleDumps/wordmatchquestions",textBasedExtraction(getcursor()).matchTags())
-	print MLP().tagaDoc("k-means and bayesian clustering neural networks")
+	# print MLP().tagaDoc("k-means and bayesian clustering neural networks")

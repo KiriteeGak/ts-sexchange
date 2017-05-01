@@ -37,7 +37,7 @@ class scrapDetails(object):
 			"answered_status" : self.getAnswers(ques)[1],
 			"poster" : self.getOP(ques),
 			"time_of_posting" : self.getPostTime(ques),
-			"date_of_posting" : self.getPostTime(ques).split(' ')[0].replace('-',''),
+			"date_of_posting" : self.getPostTime(ques),
 			"user_details" : self.getOpsReputationAndBadges(ques, ['bronze','silver','gold'])
 			} for ques in single_page_element]
 
@@ -72,8 +72,8 @@ class scrapDetails(object):
 		except AttributeError: return None 
 
 	def getPostTime(self, ques_sum_element):
-		try: return ques_sum_element.find_all('span',{"class":"relativetime"})[0].get('title')
-		except IndexError: return None
+		try: return ques_sum_element.find_all('span',{"class":"relativetime"})[0].get('title').split(' ')[0].replace('-','')
+		except (IndexError, AttributeError) : return None
 
 	def getOpsReputationAndBadges(self, ques_sum_element, badges):
 		try: badge_counts = { str(e.get('title').split(' ')[1]) : int(e.get('title').split(' ')[0]) for e in ques_sum_element.find_all('div',{"class":"-flair"})[0].find_all('span') if 'badge' in str(e.get('title'))}
