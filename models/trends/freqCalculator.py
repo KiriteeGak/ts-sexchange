@@ -47,7 +47,7 @@ class tagTrends():
 		while int(str(curr_rev_date).replace('-','')) > int(min_rev_date):
 			start_dates.append(str(curr_rev_date).replace('-',''))
 			end_dates.append(str((curr_rev_date-timedelta(days = 30))).replace('-',''))
-			curr_rev_date = curr_rev_date-timedelta(days = 90)
+			curr_rev_date = curr_rev_date-timedelta(days = 30)
 		return start_dates, end_dates
 
 	def mongoDatewiseextract(self, sd, ed, mongoCliObj):
@@ -64,16 +64,19 @@ class tagTrends():
 		return ret
 
 class plotter(object):
-	def plotgraph(self, data, number_of_top_tags):
+	def plotgraph(self, data, number_of_top_tags = 5):
 		for i, each in enumerate(data):
 			if i < number_of_top_tags:
-				plt.plot(list(reversed(each[1])),label=each[0])
+				plot_lines = getRegressionLine(list(reversed(each[1])))
+				plt.plot(plot_lines,label=each[0])
 			else:
 				plt.xlabel('Time'); plt.ylabel('No. of questions asked')
-				plt.legend(bbox_to_anchor=(1.05, 1), loc=1, borderaxespad=0.)
+				plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=4, fancybox=True, shadow=True)
 				plt.show()
 				exit()
 
+def getRegressionLine(pts):
+	return np.poly1d(np.polyfit(np.arange(len(pts)), np.array(pts), 1))
 
 if __name__ == '__main__':
 	mongoCliObj = MongoClient(ip,port)[db][collection]
@@ -81,4 +84,4 @@ if __name__ == '__main__':
 	dic_of_tag_freq = [tagTrends().mongoDatewiseextract(d,edlist[i],mongoCliObj).copy() for i,d in enumerate(selist)]
 	modified_freq_by_tags = tagTrends().countsModifiedl2d(dic_of_tag_freq,tagTrends().getAllTags(mongoCliObj))
 	sorted_freq = sorted(modified_freq_by_tags.items(), key = lambda items: sum(np.array(items[1])), reverse = True)
-	plotter().plotgraph(sorted_freq, 10)
+	plotter().plotgraph(sorted_freq)
