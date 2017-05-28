@@ -67,8 +67,9 @@ class plotter(object):
 	def plotgraph(self, data, number_of_top_tags = 5):
 		for i, each in enumerate(data):
 			if i < number_of_top_tags:
-				plot_lines = getRegressionLine(list(reversed(each[1])))
-				plt.plot(plot_lines,label=each[0])
+				# plot_lines = getRegressionLine(list(reversed(each[1]))[:-1])
+				plot_lines = list(reversed(each[1]))[:-1]
+				plt.plot(plot_lines, label=each[0])
 			else:
 				plt.xlabel('Time'); plt.ylabel('No. of questions asked')
 				plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=4, fancybox=True, shadow=True)
